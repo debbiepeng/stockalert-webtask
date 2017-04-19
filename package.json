@@ -1,0 +1,19 @@
+{
+  "name": "stockalerts",
+  "version": "1.0.0",
+  "description": "A webtask that sends an email to myself and signals buying or selling of given stock ticker, based on a simple support/resistence level calculation. ",
+  "main": "webTask.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Wei Croteau",
+  "license": "ISC",
+  "dependencies": {
+    "bluebird": "^3.5.0",
+    "confidence95": "^1.0.0",
+    "isomorphic-fetch": "^2.2.1",
+    "lodash": "^4.17.4",
+    "mailgun-js": "^0.10.1",
+    "moment": "^2.18.1"
+  }
+}
