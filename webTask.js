@@ -8,10 +8,9 @@ const Mailgun = require("mailgun-js");
 const moment = require("moment");
 
 var getIntradayStockQuote = function (ticker) {
-  let url = `https://query.yahooapis.com/v1/public/yql?q=select LastTradePriceOnly from yahoo.finance.quotes where symbol in ("${ticker}")
-  &format=json&env=store://datatables.org/alltableswithkeys`;  
+  let url = `http://finance.google.com/finance/info?q=${ticker}`;
   return fetch(url)
-    .then(res => res.json())
+    .then(res => res.text())
     .catch(err => {
       throw new Error(`Cannot get intraday quote: ${err.message}.`);
     });
@@ -19,7 +18,7 @@ var getIntradayStockQuote = function (ticker) {
 
 var getHistoricalPrices = function (ticker) {
   let endDate = moment();
-  let startDate = moment(endDate).subtract(1, "month");  
+  let startDate = moment(endDate).subtract(1, "month");
   let url = `https://query.yahooapis.com/v1/public/yql?q=select Date, High, Low, Close from yahoo.finance.historicaldata where symbol in ("${ticker}")
   and startDate="${startDate.format("YYYY-MM-DD")}" and endDate="${endDate.format("YYYY-MM-DD")}"&format=json&env=store://datatables.org/alltableswithkeys`;  
   return fetch(url)
@@ -29,17 +28,17 @@ var getHistoricalPrices = function (ticker) {
     });
 }
 
-var calculateSupportResistenceLevels = function (historicalPrices) {  
+var calculateSupportResistenceLevels = function (historicalPrices) {
   // We are assuming stock highs and lows are lognorminal distributed, 
   // and we calculate the 95% confidence interval to get an estimate of the upper and lower bounds of stock prices
   let historicalLows = _.map(historicalPrices, (q => Math.log(parseFloat(q.Low))));
   let statistics = confidence95(historicalLows);
   let support = Math.exp(statistics.mean - statistics.interval);
-  
+
   let historicalHighs = _.map(historicalPrices, (q => Math.log(parseFloat(q.High))));
   statistics = confidence95(historicalHighs);
   var resistence = Math.exp(statistics.mean + statistics.interval);
-  
+
   return { support, resistence };
 }
 
@@ -68,23 +67,24 @@ var callMailgun = function (subject, text, cb) {
 var checkPricesAPI = function (ctx, cb) {
   P.join(getIntradayStockQuote(ctx.data.ticker), getHistoricalPrices(ctx.data.ticker),  
     (intradayPriceJson, historicalPriceJson) => {
-      var intradayPrice = parseFloat(intradayPriceJson.query.results.quote.LastTradePriceOnly);
+      intradayPriceJson = intradayPriceJson.replace("//", "");      
+      var intradayPrice = JSON.parse(intradayPriceJson)[0].l;      
       var historicalPrices = _.map(historicalPriceJson.query.results.quote, q => q);
       var calcResults = calculateSupportResistenceLevels(historicalPrices);
       let mailBody = `Estimated Support Level: ${calcResults.support}\nEstimated Resistence Level: ${calcResults.resistence}\nLatest Price: ${intradayPrice}\n`;
-      if (intradayPrice >= calcResults.resistence || intradayPrice <= calcResults.support) {    
-        let subject = `A trade signal for ${ctx.data.ticker} is generated`;    
-        let actionRecommendation = `You should ${intradayPrice >= calcResults.resistence ? "SELL" : "BUY"} this stock.`    
-        callMailgun(subject, mailBody + actionRecommendation, cb);        
+      if (intradayPrice >= calcResults.resistence || intradayPrice <= calcResults.support) {
+        let subject = `A trade signal for ${ctx.data.ticker} is generated`;
+        let actionRecommendation = `You should ${intradayPrice >= calcResults.resistence ? "SELL" : "BUY"} this stock.`
+        callMailgun(subject, mailBody + actionRecommendation, cb);
       }
       else {
         cb(null, `Nothing exciting to report.\n${mailBody}`);
       }
     })
-    .catch(err => {     
+    .catch(err => {
       let subject = 'An error occurred in stock alert calculation';
       let mailBody = err.message;
-      callMailgun(subject, mailBody, cb);      
+      callMailgun(subject, mailBody, cb);
     });
 }
 
