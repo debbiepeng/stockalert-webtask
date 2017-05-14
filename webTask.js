@@ -6,6 +6,8 @@ require("isomorphic-fetch");
 const _ = require("lodash");
 const Mailgun = require("mailgun-js");
 const moment = require("moment");
+//const fincal = require("fincal"); 
+const business = require("moment-business");
 
 var getIntradayStockQuote = function (ticker) {
   let url = `http://finance.google.com/finance/info?q=${ticker}`;
@@ -54,11 +56,8 @@ var callMailgun = function (subject, text, cb) {
     text
   };
 
-  var sendPromise = P.promisify(mailgun.messages().send, { context: mailgun.messages() });
-  return sendPromise(data)
-    .then(() => {
-      cb(null, `${subject} ${text}`);
-    })
+  var sendPromise = P.promisify(mailgun.messages().send, { context: mailgun.messages() });  
+  return sendPromise(data)    
     .catch(error => {
       cb(null, `Called Mailgun: ${JSON.stringify(error)}`);
     });;
@@ -75,7 +74,14 @@ var checkPricesAPI = function (ctx, cb) {
       if (intradayPrice >= calcResults.resistence || intradayPrice <= calcResults.support) {
         let subject = `A trade signal for ${ctx.data.ticker} is generated`;
         let actionRecommendation = `You should ${intradayPrice >= calcResults.resistence ? "SELL" : "BUY"} this stock.`
-        callMailgun(subject, mailBody + actionRecommendation, cb);
+        cb(null, `${subject} ${mailBody + actionRecommendation}`);
+        // Get a market calendar for a locale 
+        // var calendar = fincal.calendar("new_york") = fincal["new_york"] = fincal.new_york;
+        let now = moment();
+        let isBusinessHour = business.isWeekDay(now) && now.format("HH:mm").isBetween("09:30", "16:00", "HH:mm");
+        if (isBusinessHour) {
+          callMailgun(subject, mailBody + actionRecommendation, cb);
+        }        
       }
       else {
         cb(null, `Nothing exciting to report.\n${mailBody}`);

@@ -14,6 +14,7 @@
     "isomorphic-fetch": "^2.2.1",
     "lodash": "^4.17.4",
     "mailgun-js": "^0.10.1",
-    "moment": "^2.18.1"
+    "moment": "^2.18.1",
+    "moment-business": "^3.0.1"
   }
 }
