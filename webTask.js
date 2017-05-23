@@ -73,17 +73,17 @@ var checkPricesAPI = function (ctx, cb) {
   P.join(getIntradayStockQuote(ctx.data.ticker), getHistoricalPrices(ctx.data.ticker),
     (intradayPriceJson, historicalPrices) => {
       intradayPriceJson = intradayPriceJson.replace("//", "");
-      var intradayPrice = JSON.parse(intradayPriceJson)[0].l;      
+      var intradayPrice = JSON.parse(intradayPriceJson)[0].l;     
       var calcResults = calculateSupportResistenceLevels(historicalPrices);
-      let mailBody = `Estimated Support Level: ${calcResults.support}\nEstimated Resistence Level: ${calcResults.resistence}\nLatest Price: ${intradayPrice}\n`;
+      let mailBody = `Estimated Support Level: ${calcResults.support}\nEstimated Resistence Level: ${calcResults.resistence}\nLatest Price: ${intradayPrice}\n`;      
       if (intradayPrice >= calcResults.resistence || intradayPrice <= calcResults.support) {
         let subject = `A trade signal for ${ctx.data.ticker} is generated`;
         let actionRecommendation = `You should ${intradayPrice >= calcResults.resistence ? "SELL" : "BUY"} this stock.`
         cb(null, `${subject} ${mailBody + actionRecommendation}`);
         // Get a market calendar for a locale 
         // var calendar = fincal.calendar("new_york") = fincal["new_york"] = fincal.new_york;
-        let now = moment();
-        let isBusinessHour = business.isWeekDay(now) && now.format("HH:mm").isBetween("09:30", "16:00", "HH:mm");
+        let now = moment.utc().utcOffset(-4);       
+        let isBusinessHour = business.isWeekDay(now) && now.isBetween(moment.utc("13:00", "HH:mm").utcOffset(-4), moment.utc("21:00", "HH:mm").utcOffset(-4));              
         if (isBusinessHour) {
           callMailgun(subject, mailBody + actionRecommendation, cb);
         }
